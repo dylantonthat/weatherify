@@ -1,6 +1,6 @@
 # Weatherify: Spotify-Powered Music Forecasting
 
-This is a simple example of authentication in [Next.js](https://nextjs.org/), using [NextAuth.js](https://next-auth.js.org/) with [Spotify](https://developer.spotify.com/documentation/general/guides/authorization/).
+This is a simple example of authentication in [Next.js](https://nextjs.org/), using [NextAuth.js](https://next-auth.js.org/) with [Spotify Web](https://developer.spotify.com/documentation/general/guides/authorization/) and [Open Weather Map] ([https://openweathermap.org/api](url)) APIs.
 
 ## Getting Started
 
