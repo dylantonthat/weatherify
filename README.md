@@ -1,6 +1,9 @@
 # Weatherify: Spotify-Powered Music Forecasting
 
-Weatherify is a web application designed to recommend Spotify Users playlists to synchronize with their current weather conditions. Created with [Next.js](https://nextjs.org/), using [NextAuth.js](https://next-auth.js.org/) with [Spotify Web](https://developer.spotify.com/documentation/general/guides/authorization/) and [Open Weather Map](https://openweathermap.org/api) APIs.
+Weatherify is a web application that aims to curate personalized songs that match the climate of your environment, and by extension your mood.
+The handpicked tracks' information are displayed in conjunction with your location's weather.
+
+Created with [Next.js](https://nextjs.org/), using [NextAuth.js](https://next-auth.js.org/) with [Spotify Web](https://developer.spotify.com/documentation/general/guides/authorization/) and [Open Weather Map](https://openweathermap.org/api) APIs.
 
 ## Getting Started
 
