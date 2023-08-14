@@ -1,6 +1,6 @@
 # Weatherify: Spotify-Powered Music Forecasting
 
-This is a simple example of authentication in [Next.js](https://nextjs.org/), using [NextAuth.js](https://next-auth.js.org/) with [Spotify Web](https://developer.spotify.com/documentation/general/guides/authorization/) and [Open Weather Map](https://openweathermap.org/api) APIs.
+Weatherify is a web application designed to recommend Spotify Users playlists to synchronize with their current weather conditions. Created with [Next.js](https://nextjs.org/), using [NextAuth.js](https://next-auth.js.org/) with [Spotify Web](https://developer.spotify.com/documentation/general/guides/authorization/) and [Open Weather Map](https://openweathermap.org/api) APIs.
 
 ## Getting Started
 
