@@ -7,6 +7,7 @@ function Footer() {
           className="hover:underline"
           href="https://www.dylantonthat.com/"
           target="_blank"
+          rel="noreferrer"
         >
           Dylan Ton-That
         </a>{" "}

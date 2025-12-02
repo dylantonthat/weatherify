@@ -23,6 +23,7 @@ function Contact() {
                 className="text-green-100 hover:text-green-200 transition duration-200"
                 href="https://www.dylantonthat.com"
                 target="_blank"
+                rel="noreferrer"
               >
                 {" "}
                 here.

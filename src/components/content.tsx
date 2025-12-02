@@ -1,6 +1,7 @@
 "use client";
 //^ have to say so that the page is read as a client component and rendered on client side, not server
 import WeatherBoilerplate from "@/components/weatherBoilerplate";
+import Image from "next/image";
 
 import { NextPage } from "next";
 import React, { useState } from "react";
@@ -94,13 +95,13 @@ const Callback: NextPage = () => {
                     <>
                       <h1 className="title-font text-lg font-medium text-gray-900 mb-3">
                         Weather <span className="text-green-100"> Report</span>
-                        <img
+                        <Image
                           className="lg:h-24 md:h-16 object-cover object-center"
                           src={"https://openweathermap.org/img/wn/" + weatherData.weather[0].icon + "@2x.png"}
                           alt="Weather Logo"
-                          width = "100"
-                          height = "100"
-                        ></img>
+                          width={100}
+                          height={100}
+                        />
                       </h1>
                       <p className="leading-relaxed mb-3">
                         It currently feels like {weatherData.main.feels_like}ºF in {weatherData.name},
@@ -120,13 +121,13 @@ const Callback: NextPage = () => {
                 <div className="p-6">
                   <h1 className="title-font text-lg font-medium text-gray-900 mb-3">
                     <span className="text-green-100"> Spotify</span>{" "} Recommends
-                    <img
+                    <Image
                       className="lg:h-24 md:h-16 object-cover object-center"
                       src="/SpotifyLogo.png"
                       alt="Spotify Logo"
-                      width = "100"
-                      height = "100"
-                    ></img>
+                      width={100}
+                      height={100}
+                    />
                   </h1>
                   <p className="leading-relaxed mb-3">
                     Your Spotify-powered music forecast using your location will be displayed here.

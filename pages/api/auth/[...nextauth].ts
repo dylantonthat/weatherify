@@ -1,11 +1,22 @@
 import NextAuth from 'next-auth'
 import SpotifyProvider from 'next-auth/providers/spotify'
 
-// Normalize NEXTAUTH_URL: replace localhost with 127.0.0.1 for Spotify compatibility
-// Spotify no longer allows 'localhost' in redirect URIs - must use explicit IP
+// Normalize NEXTAUTH_URL: replace localhost with 127.0.0.1 for Spotify compatibility (dev only)
+// Spotify no longer allows 'localhost' in redirect URIs - must use explicit IP for local dev
+// For production (Vercel), use the URL as-is (must be HTTPS)
 const normalizeUrl = (url: string | undefined): string => {
-  if (!url) return 'http://127.0.0.1:3000'
-  return url.replace(/localhost/g, '127.0.0.1').replace(/\/$/, '')
+  if (!url) {
+    // Default to localhost for development
+    return process.env.NODE_ENV === 'production' 
+      ? '' // Vercel will set this automatically via NEXTAUTH_URL env var
+      : 'http://127.0.0.1:3000'
+  }
+  // Only normalize localhost for development
+  if (url.includes('localhost')) {
+    return url.replace(/localhost/g, '127.0.0.1').replace(/\/$/, '')
+  }
+  // For production URLs, just remove trailing slash
+  return url.replace(/\/$/, '')
 }
 
 const baseUrl = normalizeUrl(process.env.NEXTAUTH_URL)

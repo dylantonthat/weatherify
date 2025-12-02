@@ -12,7 +12,7 @@ function About() {
               synchronizing with the exhilarating energy of a night out, the power of music knows no bounds in shaping our moods and experiences.
               <br></br><br></br>
               Weatherify aims to curate personalized songs that match the climate of your environment, and by extension your mood.
-              The handpicked tracks' information are displayed in conjunction with your location's weather.
+              The handpicked tracks&apos; information are displayed in conjunction with your location&apos;s weather.
             </p>
           </div>
         </div>
