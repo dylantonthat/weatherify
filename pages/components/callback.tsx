@@ -1,300 +1,292 @@
 'use client'
 //^ have to say so that the page is read as a client component and rendered on client side, not server
-import React, { useEffect, useState } from 'react'
-import SpotifyBoilerplate from './spotifyBoilerplate'
-import WeatherBoilerplate from './weatherBoilerplate'
+import { useSession } from 'next-auth/react'
+import { useCallback, useEffect, useState } from 'react'
+import { getRecommendedSongs, Track } from '../../lib/spotifyRecommendations'
+import SongCarousel from './songCarousel'
 
 const openWeatherMapAPIKey = 'b02d63e500da957b341bd27c9068b802'
 
-//if weatherData.weather[0].description is clear sky, few clouds, mist
-const ChillMixID = '37i9dQZF1DX889U0CL85jj'
-
-//if weatherData.weather[0].description is shower rain, rain, thunderstorm
-const ChillRainyDayID = '37i9dQZF1EIelivQWnxTte'
-
-//if weatherData.weather[0].description is scattered clouds, broken clouds
-const CloudyWeatherID = '5LkCNhKwuKa1niaXnFuzVf'
-
-//if weatherData.weather[0].description is snow
-const SnowDayID = '4WCmHOBqKS7pac4s1lW2ZY'
-
 function Callback() {
-  //open weather map api variables
-  const [city, setCity] = useState<any>({})
-  const handleCityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setCity(event.target.value)
-  }
+  const { data: session } = useSession()
+  
+  // Weather and location state
   const [weatherData, setWeatherData] = useState<any>({})
+  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null)
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false)
+  const [isLoadingWeather, setIsLoadingWeather] = useState(false)
 
-  console.log(city)
+  // Spotify recommendations state
+  const [recommendedTracks, setRecommendedTracks] = useState<Track[]>([])
+  const [isLoadingTracks, setIsLoadingTracks] = useState(false)
+  const [tracksError, setTracksError] = useState<string | null>(null)
 
-  //spotify web api variables
-  const [accessToken, setAccessToken] = useState('')
-  const [playlist, setPlaylist] = useState<any>({})
+  // Get user's location using geolocation API
+  const getUserLocation = useCallback(() => {
+    setIsLoadingLocation(true)
+    setLocationError(null)
 
-  //fetching Spotify access token from the server side when application is started
-  //and setting it to a State variable
-  useEffect(() => {
-    fetch('/api/spotify') // Make a request to your API route
-      //then return the access token and other relevant information in a JSON object
-      //then set the access token so it can be used beyond this fetch method
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser')
+      setIsLoadingLocation(false)
+      return
+    }
 
-      .then((result) => result.json())
-      .then((data) => setAccessToken(data.access_token))
-      .catch((error) => console.error('Error fetching Spotify token:', error))
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords
+        setLocation({ lat: latitude, lon: longitude })
+        setIsLoadingLocation(false)
+      },
+      (error) => {
+        console.error('Geolocation error:', error)
+        setLocationError('Unable to retrieve your location. Please allow location access.')
+        setIsLoadingLocation(false)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    )
   }, [])
 
-  //retrieving weather data
-  async function getWeatherData() {
-    console.log('Button pressed')
-    // https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API Key}
-
-    // 1. Query our data based on the location input
-    // 2. If the location cannot be found, throw an error
-    // 3. Otherwise, save data
+  // Get weather data based on coordinates
+  const getWeatherDataFromCoords = useCallback(async (lat: number, lon: number) => {
+    setIsLoadingWeather(true)
     try {
       const serverResponse = await fetch(
-        'https://api.openweathermap.org/data/2.5/weather?' +
-          'q=' +
-          city +
-          '&appid=' +
-          openWeatherMapAPIKey +
-          '&units=imperial'
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${openWeatherMapAPIKey}&units=imperial`
       )
 
       const data = await serverResponse.json()
-      console.log(data)
+      console.log('Weather data:', data)
 
-      if (data?.cod === '404') {
-        throw data
+      if (data?.cod === '404' || data?.cod === '400') {
+        throw new Error(data.message || 'Weather data not found')
       }
 
       setWeatherData(data)
-      console.log(weatherData)
-    } catch (err) {
-      console.log(err)
+      setIsLoadingWeather(false)
+    } catch (err: any) {
+      console.error('Weather fetch error:', err)
+      setLocationError(err.message || 'Failed to fetch weather data')
+      setIsLoadingWeather(false)
     }
-  }
+  }, [])
 
-  //retrieving playlist metadata
-  async function getPlaylist() {
+  // Fetch weather when location is available
+  useEffect(() => {
+    if (location) {
+      getWeatherDataFromCoords(location.lat, location.lon)
+    }
+  }, [location, getWeatherDataFromCoords])
+
+  // Retrieving recommended tracks based on weather using user's session token
+  const getRecommendedSongsFromWeather = useCallback(async () => {
     try {
+      // Get access token from session
+      const userAccessToken = (session as any)?.accessToken
+      
+      console.log('Session check:', {
+        hasSession: !!session,
+        hasAccessToken: !!userAccessToken,
+        tokenLength: userAccessToken?.length,
+        tokenPreview: userAccessToken ? `${userAccessToken.substring(0, 20)}...` : 'none',
+      })
+      
       // Check if weatherData is defined and has the expected structure
       if (
         weatherData &&
         weatherData.weather &&
-        weatherData.weather.length > 0
+        weatherData.weather.length > 0 &&
+        userAccessToken
       ) {
-        console.log('setting playlist')
+        console.log('Fetching recommended tracks based on weather')
+        setIsLoadingTracks(true)
+        setTracksError(null)
 
-        // Setting up necessary parameters like our pulled access token and content type, which is again JSON
-        var playlistParameters = {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer ' + accessToken,
-          },
-        }
-
-        const weatherDescription = weatherData.weather[0].description
-
-        if (
-          weatherDescription.includes('clear sky') ||
-          weatherDescription.includes('few clouds') ||
-          weatherDescription.includes('mist')
-        ) {
-          var playlist = await fetch(
-            'https://api.spotify.com/v1/playlists/' + ChillMixID,
-            playlistParameters
-          )
-            .then((response) => response.json())
-            .then((data) => {
-              console.log(data)
-              setPlaylist(data)
-            })
-        } else if (
-          weatherDescription.includes('shower rain') ||
-          weatherDescription.includes('rain') ||
-          weatherDescription.includes('thunderstorm')
-        ) {
-          var playlist = await fetch(
-            'https://api.spotify.com/v1/playlists/' + ChillRainyDayID,
-            playlistParameters
-          )
-            .then((response) => response.json())
-            .then((data) => {
-              console.log(data)
-              setPlaylist(data)
-            })
-        } else if (
-          weatherDescription.includes('scattered clouds') ||
-          weatherDescription.includes('broken clouds') ||
-          weatherDescription.includes('overcast clouds')
-        ) {
-          var playlist = await fetch(
-            'https://api.spotify.com/v1/playlists/' + CloudyWeatherID,
-            playlistParameters
-          )
-            .then((response) => response.json())
-            .then((data) => {
-              console.log(data)
-              setPlaylist(data)
-            })
-        } else {
-          var playlist = await fetch(
-            'https://api.spotify.com/v1/playlists/' + SnowDayID,
-            playlistParameters
-          )
-            .then((response) => response.json())
-            .then((data) => {
-              console.log(data)
-              setPlaylist(data)
-            })
-        }
+        // Get recommended tracks using the new recommendations API
+        const tracks = await getRecommendedSongs(userAccessToken, weatherData, 15)
+        console.log('Received recommended tracks:', tracks)
+        setRecommendedTracks(tracks)
+        setIsLoadingTracks(false)
       } else {
-        console.log('weatherData is not defined or has an unexpected structure')
+        if (!userAccessToken) {
+          console.log('User access token not available yet')
+          setTracksError('Please sign in with Spotify to get recommendations')
+        } else {
+          console.log('weatherData is not defined or has an unexpected structure')
+        }
       }
-    } catch (err) {
-      console.log(err)
+    } catch (err: any) {
+      console.error('Error fetching recommended tracks:', err)
+      setTracksError(err.message || 'Failed to fetch recommended tracks')
+      setIsLoadingTracks(false)
+      setRecommendedTracks([])
     }
-  }
+  }, [weatherData, session])
 
-  //checking if the weather was extracted; if it is, then we can get the corresponding playlist data
+  // Get recommended tracks when weather data and session are available
   useEffect(() => {
-    if (weatherData.weather) {
-      getPlaylist() // Call getPlaylist when weatherData state has been updated
+    if (weatherData.weather && session) {
+      getRecommendedSongsFromWeather()
     }
-  }, [weatherData])
+  }, [weatherData, session, getRecommendedSongsFromWeather])
+
+  // Show initial state - just the location button
+  if (!location && !isLoadingLocation && !locationError) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <button
+            className="text-white rounded-full py-4 px-12 text-lg bg-green-100 transition duration-200 ease-in-out hover:bg-green-200 shadow-lg hover:shadow-xl"
+            type="button"
+            onClick={getUserLocation}
+          >
+            Get My Location
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
       <section className="text-gray-600 body-font">
-        {/* search bar with functionality */}
-        <div className="flex mt-1">
-          <div
-            className="mx-auto mb-1 container px-4 items-center justify-center lg: w-3/4 px-0 flex flex-col
-            md:flex-row items-stretch"
-          >
-            <input
-              type="search"
-              className="w-full md:w-[1px] rounded flex-auto md:rounded-l border border-solid border-neutral-300 px-3 py-2 md:py-[0.25rem] text-base font-normal leading-[1.6] ease-in-out focus:z-[3] focus:border-primary"
-              placeholder="Enter City (e.g. New York City, Dubai)"
-              aria-label="Search"
-              onChange={handleCityChange}
-            />
-
+        {/* Status messages */}
+        {isLoadingLocation && (
+          <div className="text-center py-2">
+            <p className="text-gray-600">Getting your location...</p>
+          </div>
+        )}
+        {locationError && (
+          <div className="text-center py-2">
+            <p className="text-red-500">{locationError}</p>
             <button
-              className="text-white rounded mt-2 md:mt-0 ml-0 md:ml-1 relative z-[2] py-2 md:rounded-r px-4 md:px-6 text-base md:text-m bg-green-100 transition duration-200 ease-in-out hover:bg-green-200"
-              type="button"
-              onClick={() => {
-                getWeatherData()
-              }}
+              className="mt-2 text-white rounded py-2 px-6 bg-green-100 hover:bg-green-200 transition duration-200"
+              onClick={getUserLocation}
             >
-              SEARCH CITY
+              Try Again
             </button>
           </div>
-        </div>
+        )}
 
-        {/*output boxes to display Weather Reports and Playlist Recommendations*/}
-        <div className="container px-5 py-5 mx-auto ">
-          <div className="flex flex-wrap justify-center">
-            <div className="p-2 md:w-2/5">
-              <div className="h-full border-2 border-gray-200 border-opacity-60 rounded-lg overflow-hidden">
-                <div className="p-6">
-                  {Object.keys(weatherData).length !== 0 ? (
-                    <div>
-                      <h1 className="title-font text-lg font-medium text-gray-900 mb-3">
-                        Weather <span className="text-green-100"> Report</span>
-                        <img
-                          className="lg:h-24 md:h-16 object-cover object-center"
-                          src={
-                            'https://openweathermap.org/img/wn/' +
-                            weatherData.weather[0].icon +
-                            '@2x.png'
-                          }
-                          alt="Weather Logo"
-                          width="100"
-                          height="100"
-                        ></img>
-                      </h1>
-
-                      {/*Weather Report Description*/}
-                      <p className="leading-relaxed mb-3">
-                        It currently feels like {weatherData.main.feels_like}ºF
-                        in {weatherData.name}, with a dash of{' '}
-                        {weatherData.weather[0].main} on top.
-                      </p>
-                    </div>
-                  ) : (
-                    <WeatherBoilerplate/>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-2 md:w-2/5">
-              <div className="h-full border-2 border-gray-200 border-opacity-60 rounded-lg overflow-hidden">
-                <div className="p-6">
-                  {Object.keys(playlist).length !== 0 ? (
-                    <div>
-                      <h1 className="title-font text-lg font-medium text-gray-900 mb-3">
-                        <span className="text-green-100"> Weatherify</span>{' '}
-                        Recommends
-                        <img
-                          className="lg:h-24 md:h-16 object-cover object-center rounded-lg"
-                          src={playlist.images[0].url}
-                          alt="Spotify Album"
-                          width="100"
-                          height="100"
-                        ></img>
-                      </h1>
-
-                      {/*Spotify Recommendation Description*/}
-                      <p className="leading-relaxed mb-3">
-                        In order to sychronize yourself with your environment,
-                        we recommend:
-                        <br></br>
-                        <span className="text-green-100 font-bold">
-                          {playlist.name}
-                        </span>
-                      </p>
-                      <div className="flex items-center flex-wrap ">
-                        <a
-                          className="text-indigo-500 inline-flex items-center md:mb-2 lg:mb-0 hover:underline transition duration-200"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          href={playlist.external_urls.spotify}
-                        >
-                          Listen on Spotify
-                          <svg
-                            className="w-4 h-4 ml-2"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          >
-                            <path d="M5 12h14"></path>
-                            <path d="M12 5l7 7-7 7"></path>
-                          </svg>
-                        </a>
-                        <span className="text-gray-400 mr-3 inline-flex items-center lg:ml-auto md:ml-0 ml-auto leading-none text-sm pr-3 py-1 border-r-2 border-gray-200">
-                          {playlist.tracks.items.length} tracks
-                        </span>
-                        <span className="text-gray-400 inline-flex items-center leading-none text-sm">
-                          {playlist.description}
-                        </span>
+        {/* Horizontal Carousel - Weather and Songs */}
+        {(Object.keys(weatherData).length > 0 || isLoadingWeather || isLoadingTracks) && (
+          <div className="w-full py-4">
+            <div className="flex flex-wrap justify-center gap-6 px-4 max-w-7xl mx-auto">
+              {/* Weather Card */}
+              <div className="w-full sm:w-[500px]">
+                <div className="h-full bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-2xl overflow-hidden shadow-2xl hover:shadow-3xl transition-shadow duration-300">
+                  <div className="p-5 min-h-[280px] flex flex-col">
+                    {isLoadingWeather ? (
+                      <div className="text-center">
+                        <h2 className="title-font text-lg font-semibold text-gray-800 mb-4">
+                          Weather <span className="text-green-100">Report</span>
+                        </h2>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-100 mx-auto mb-2"></div>
+                        <p className="text-gray-600 text-sm">Loading weather data...</p>
                       </div>
-                    </div>
-                  ) : (
-                    <SpotifyBoilerplate/>
-                  )}
+                    ) : Object.keys(weatherData).length !== 0 ? (
+                      <>
+                        <h2 className="title-font text-lg font-semibold text-gray-800 mb-4 text-center">
+                          Weather <span className="text-green-100">Report</span>
+                        </h2>
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="mb-4">
+                            <div className="bg-white rounded-full p-2 shadow-lg">
+                              <img
+                                className="w-20 h-20 object-cover"
+                                src={
+                                  'https://openweathermap.org/img/wn/' +
+                                  weatherData.weather[0].icon +
+                                  '@2x.png'
+                                }
+                                alt="Weather Icon"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-center w-full">
+                            <p className="text-3xl font-bold text-gray-900 mb-1">
+                              {Math.round(weatherData.main.temp)}ºF
+                            </p>
+                            <p className="text-sm text-gray-600 mb-2">
+                              Feels like {Math.round(weatherData.main.feels_like)}ºF
+                            </p>
+                            <p className="text-lg text-gray-800 mb-2 font-semibold">
+                              {weatherData.name}
+                            </p>
+                            <p className="text-gray-600 capitalize text-base font-medium mb-4">
+                              {weatherData.weather[0].description}
+                            </p>
+                            
+                            {/* Additional Weather Info */}
+                            <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-gray-300">
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500 mb-1">High / Low</p>
+                                <p className="text-sm font-semibold text-gray-800">
+                                  {Math.round(weatherData.main.temp_max)}º / {Math.round(weatherData.main.temp_min)}º
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500 mb-1">Humidity</p>
+                                <p className="text-sm font-semibold text-gray-800">
+                                  {weatherData.main.humidity}%
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500 mb-1">Wind Speed</p>
+                                <p className="text-sm font-semibold text-gray-800">
+                                  {Math.round(weatherData.wind?.speed || 0)} mph
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500 mb-1">Pressure</p>
+                                <p className="text-sm font-semibold text-gray-800">
+                                  {weatherData.main.pressure} hPa
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
               </div>
+
+              {/* Songs Carousel */}
+              {isLoadingTracks ? (
+                <div className="w-full sm:w-[500px]">
+                  <div className="h-full bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl overflow-hidden shadow-2xl">
+                    <div className="p-5 text-center min-h-[280px] flex flex-col justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-100 mx-auto mb-2"></div>
+                      <h2 className="title-font text-lg font-semibold text-gray-800 mb-1">
+                        <span className="text-green-100">Weatherify</span> Recommends
+                      </h2>
+                      <p className="text-gray-600 text-sm">Finding the perfect songs...</p>
+                    </div>
+                  </div>
+                </div>
+              ) : tracksError ? (
+                <div className="w-full sm:w-[500px]">
+                  <div className="h-full bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-2xl overflow-hidden shadow-2xl">
+                    <div className="p-5 text-center min-h-[280px] flex flex-col justify-center">
+                      <h2 className="title-font text-lg font-semibold text-gray-800 mb-2">
+                        <span className="text-green-100">Weatherify</span> Recommends
+                      </h2>
+                      <p className="text-red-600 font-medium text-sm">{tracksError}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : recommendedTracks.length > 0 ? (
+                <SongCarousel tracks={recommendedTracks} />
+              ) : null}
             </div>
           </div>
-        </div>
+        )}
       </section>
     </div>
   )
