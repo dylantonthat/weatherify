@@ -1,6 +1,7 @@
 'use client'
 //^ have to say so that the page is read as a client component and rendered on client side, not server
 import { useSession } from 'next-auth/react'
+import Image from 'next/image'
 import { useCallback, useEffect, useState } from 'react'
 import { getRecommendedSongs, Track } from '../../lib/spotifyRecommendations'
 import SongCarousel from './songCarousel'
@@ -197,7 +198,7 @@ function Callback() {
                         <div className="flex flex-col items-center justify-center">
                           <div className="mb-4">
                             <div className="bg-white rounded-full p-2 shadow-lg">
-                              <img
+                              <Image
                                 className="w-20 h-20 object-cover"
                                 src={
                                   'https://openweathermap.org/img/wn/' +
@@ -205,6 +206,8 @@ function Callback() {
                                   '@2x.png'
                                 }
                                 alt="Weather Icon"
+                                width={80}
+                                height={80}
                               />
                             </div>
                           </div>
