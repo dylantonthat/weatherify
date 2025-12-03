@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { Track } from '../../lib/spotifyRecommendations'
 
@@ -57,10 +58,12 @@ function SongCarousel({ tracks }: SongCarouselProps) {
             {/* Album Art */}
             <div className="mb-4">
               <div className="relative group">
-                <img
+                <Image
                   className="w-32 h-32 object-cover rounded-xl shadow-xl transform group-hover:scale-105 transition-transform duration-300"
                   src={albumImage}
                   alt={currentTrack.album.name}
+                  width={128}
+                  height={128}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
