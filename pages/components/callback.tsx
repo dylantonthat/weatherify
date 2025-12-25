@@ -42,13 +42,31 @@ function Callback() {
       },
       (error) => {
         console.error('Geolocation error:', error)
-        setLocationError('Unable to retrieve your location. Please allow location access.')
+        let errorMessage = 'Unable to retrieve your location.'
+        
+        // Provide specific error messages based on error code
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Location access was denied. Please enable location permissions in your browser settings and try again.'
+            break
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location information is unavailable. Please check your device settings and try again.'
+            break
+          case error.TIMEOUT:
+            errorMessage = 'Location request timed out. Please check your internet connection and try again. You can also try allowing location access in your browser settings.'
+            break
+          default:
+            errorMessage = 'An unknown error occurred while retrieving your location. Please try again.'
+            break
+        }
+        
+        setLocationError(errorMessage)
         setIsLoadingLocation(false)
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        enableHighAccuracy: false, // Set to false to use faster, less accurate methods first
+        timeout: 30000, // Increased timeout to 30 seconds
+        maximumAge: 60000, // Accept cached location up to 1 minute old
       }
     )
   }, [])

@@ -13,15 +13,16 @@ function SongCarousel({ tracks }: SongCarouselProps) {
 
   // Auto-rotate carousel every 5 seconds
   useEffect(() => {
-    if (!autoRotate || tracks.length <= 1) return
+    if (!autoRotate || !tracks || tracks.length <= 1) return
 
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % tracks.length)
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [autoRotate, tracks.length])
+  }, [autoRotate, tracks])
 
+  // Early return if tracks is undefined or empty (after hooks)
   if (!tracks || tracks.length === 0) {
     return null
   }
@@ -167,4 +168,11 @@ function SongCarousel({ tracks }: SongCarouselProps) {
 }
 
 export default SongCarousel
+
+// Prevent this file from being statically generated as a page
+export async function getStaticProps() {
+  return {
+    notFound: true,
+  }
+}
 
